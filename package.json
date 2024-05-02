@@ -1,0 +1,22 @@
+{
+  "name": "service-templates",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.12.8",
+    "@types/nunjucks": "^3.2.6",
+    "@types/yargs": "^17.0.32",
+    "typescript": "5.4.5"
+  },
+  "dependencies": {
+    "nunjucks": "^3.2.4",
+    "ts-node": "^10.9.2",
+    "yargs": "^17.7.2"
+  }
+}

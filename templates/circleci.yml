@@ -1,0 +1,113 @@
+orbs:
+  aws-cli: circleci/aws-cli@3.1.3
+
+commands:
+  login-ecr:
+    steps:
+      - run:
+          name: Login to Amazon ECR
+          command: just login ${AWS_ECR_DOMAIN}
+
+jobs:
+  build:
+    docker:
+      - image:cimg/base:current
+    resource_class: small
+    steps:
+      - aws-cli/install
+
+      -run:
+        name: Install Just CLI - latest
+        command: |
+          curl \
+            --proto '=https' \
+            --tlsv1.2 -sSf https://just.systems/install.sh \
+            | bash -s -- --to /usr/local/bin
+
+            echo 'export PATH=/tmp/just:"PATH"' >> $BASH_ENV
+
+      - setup_remote_docker:
+          docker_layer_caching: true
+          version: 20.10.7
+      
+      - checkout
+
+      - login-ecr
+
+      - run:
+          name: Build Docker Image
+          command: just build "{{ ServiceName }}" 
+
+      - run:
+          name: Push Docker Image
+          command: just push "{{ ServiceName }}"
+  
+  refresh:
+    docker:
+      - image: $AWS_ECR_DOMAIN/{{ ServiceName }}:latest
+        aws_auth:
+          aws_access_key_id: $AWS_ACCESS_KEY_ID
+          aws_secret_access_key: $AWS_SECRET_ACCESS_KEY
+    resource_class: small
+    working_directory: /usr/src/app
+    steps:
+      - run:
+          name: Refresh Stack
+          command: just refresh "{{ ServiceName }}"
+  
+  preview:
+    docker:
+      - image: $AWS_ECR_DOMAIN/{{ ServiceName }}:latest
+        aws_auth:
+          aws_access_key_id: $AWS_ACCESS_KEY_ID
+          aws_secret_access_key: $AWS_SECRET_ACCESS_KEY
+    resource_class: small
+    working_directory: /usr/src/app
+    steps:
+      - run:
+          name: Preview Stack
+          command: just preview "{{ ServiceName }}"
+  
+  update:
+    docker:
+      - image: $AWS_ECR_DOMAIN/{{ ServiceName }}:latest
+        aws_auth:
+          aws_access_key_id: $AWS_ACCESS_KEY_ID
+          aws_secret_access_key: $AWS_SECRET_ACCESS_KEY
+    resource_class: small
+    working_directory: /usr/src/app
+    steps:
+      - run:
+          name: Update Stack
+          command: just update "{{ ServiceName }}"
+
+workflows:
+  build-preview-update:
+    jobs:
+      - build:
+          context:
+            - altf4llc-aws
+      
+      - refresh:
+          context:
+            - altf4llc-aws
+          requires:
+            - build
+      
+      - preview:
+          context:
+            - altf4llc-aws
+          requires:
+            - refresh
+      
+      - update:
+          context:
+            - altf4llc-aws
+          filters:
+            branches:
+              only:
+                - main
+          requires:
+            - preview
+
+version: 2.1
